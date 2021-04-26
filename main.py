@@ -1,12 +1,14 @@
+# HomeWork #1 – Genre Classification
 import numpy as np
 import librosa
 import librosa.display
 import os
 import matplotlib.pyplot as plt
-import sklearn.svm #containts the class that implements the machine to analyze music
+import sklearn.svm  # containts the class that implements the machine to analyze music
 import IPython.display as ipd
 import scipy as sp
 
+# Feature computation
 
 # we skip the preliminary elaboration of the signal
 def compute_mfcc(audio, fs, n_mfcc):
@@ -39,6 +41,9 @@ def compute_mfcc(audio, fs, n_mfcc):
     return mfcc  # n_mfcc x no. of windows
 
 
+### Compute training features
+
+
 classes = ['rock', 'pop', 'reggae', 'disco']  # now I wanna train my algorithm.
 
 # we compute the number of factors for each feature
@@ -49,6 +54,7 @@ n_spec_centr = 1
 n_feat_weights = n_mfcc + n_chroma + n_spec_roll + n_spec_centr
 dict_train_features = {'rock': [], 'pop': [], 'reggae': [], 'disco': []}
 mfcc_plot = {'rock': [], 'pop': [], 'reggae': [], 'disco': []}  # for plotting the MFCC figures
+chroma_plot = {'rock': [], 'pop': [], 'reggae': [], 'disco': []}  # for plotting the chroma figures
 
 for c in classes:
     # print("Sto analizzando " + '{}'.format(c))
@@ -57,6 +63,7 @@ for c in classes:
     n_train_samples = len(class_train_files)
 
     train_mfcc_plot = np.zeros((n_train_samples, n_mfcc))
+    train_chroma_plot = np.zeros((n_train_samples, n_chroma))
     train_features = np.zeros((n_train_samples, n_feat_weights))
 
     # we compute for each track: mfcc_mean, chroma_mean, spec_roll_mean and spec_centr_mean
@@ -93,12 +100,15 @@ for c in classes:
         spec_roll_mean = np.mean(spec_roll, axis=1)
         spec_centr = librosa.feature.spectral_centroid(audio, fs)
         spec_centr_mean = np.mean(spec_centr, axis=1)
-        train_mfcc_plot[index, :] = np.mean(mfcc, axis=1)
+        train_mfcc_plot[index, :] = mfcc_mean
+        train_chroma_plot[index, :] = chroma_mean
         train_features[index, :] = np.concatenate((mfcc_mean, chroma_mean, spec_roll_mean, spec_centr_mean), axis=0)
     mfcc_plot[c] = train_mfcc_plot
+    chroma_plot[c] = train_chroma_plot
     dict_train_features[c] = train_features
 # print(dict_train_features[c].shape)
 
+### Compute test features
 
 # the syntax for test files is pretty the same.
 dict_test_features = {'rock': [], 'pop': [], 'reggae': [], 'disco': []}
@@ -123,6 +133,7 @@ for c in classes:
     dict_test_features[c] = test_features
     # print(dict_test_features[c].shape)
 
+### Feature visualization
 
 # MFCC PLOT
 
@@ -130,22 +141,37 @@ for c in classes:
     mfcc = mfcc_plot[c].transpose()
     # Visualization
     fig = plt.figure(figsize=(16, 6))
-    plt.subplot(1,2,1)
+    plt.subplot(1, 2, 1)
     plt.imshow(mfcc, origin='lower', aspect='auto')
     plt.xlabel('Training samples')
     plt.ylabel('MFCC coefficients')
-    plt.title('MFCC (coefficients 0 to 13) for class {}'.format(c))
+    plt.title('MFCC (coefficients 0 to 35) for class {}'.format(c))
     plt.colorbar()
     plt.tight_layout()
 
     mfcc_upper = mfcc[4:]
-    plt.subplot(1,2,2)
+    plt.subplot(1, 2, 2)
     plt.imshow(mfcc_upper, origin='lower', aspect='auto')
-    plt.title('MFCC (coefficients 4 to 13) for class {}'.format(c))
+    plt.title('MFCC (coefficients 4 to 35) for class {}'.format(c))
     plt.xlabel('Training samples')
     plt.ylabel('MFCC coefficients')
     plt.colorbar()
     plt.tight_layout()
+
+# CHROMA PLOT
+
+for c in classes:
+    chroma = chroma_plot[c].transpose()
+    # Visualization
+    fig = plt.figure(figsize=(16, 6))
+    plt.imshow(chroma, origin='lower', aspect='auto')
+    plt.xlabel('Training samples')
+    plt.ylabel('Chroma coefficients')
+    plt.title('Chroma for class {}'.format(c))
+    plt.colorbar()
+    plt.tight_layout()
+
+# Computing SVM
 
 class_0 = 'rock'
 class_1 = 'pop'
@@ -159,25 +185,25 @@ X_train_3 = dict_train_features[class_3]
 
 y_train_0 = np.zeros((X_train_0.shape[0],))
 y_train_1 = np.ones((X_train_1.shape[0],))
-y_train_2 = np.ones((X_train_2.shape[0],))*2
-y_train_3 = np.ones((X_train_3.shape[0],))*3
+y_train_2 = np.ones((X_train_2.shape[0],)) * 2
+y_train_3 = np.ones((X_train_3.shape[0],)) * 3
 
-#y_train = np.concatenate((y_train_class_0, y_train_class_1, y_train_class_1), axis=0)
-
+# y_train = np.concatenate((y_train_class_0, y_train_class_1, y_train_class_1), axis=0)
 
 X_test_0 = dict_test_features[class_0]
 X_test_1 = dict_test_features[class_1]
 X_test_2 = dict_test_features[class_2]
 X_test_3 = dict_test_features[class_3]
 
-
 y_test_0 = np.zeros((X_test_0.shape[0],))
 y_test_1 = np.ones((X_test_1.shape[0],))
-y_test_2 = np.ones((X_test_2.shape[0],))*2
-y_test_3 = np.ones((X_test_1.shape[0],))*3
+y_test_2 = np.ones((X_test_2.shape[0],)) * 2
+y_test_3 = np.ones((X_test_1.shape[0],)) * 3
 
 y_test_mc = np.concatenate((y_test_0, y_test_1, y_test_2, y_test_3), axis=0)
 
+
+### Normalize features
 
 feat_max = np.max(np.concatenate((X_train_0, X_train_1, X_train_2, X_train_3), axis=0), axis=0)
 feat_min = np.min(np.concatenate((X_train_0, X_train_1, X_train_2, X_train_3), axis=0), axis=0)
@@ -189,12 +215,17 @@ X_train_3_normalized = (X_train_3 - feat_min) / (feat_max - feat_min)
 
 X_test_0_normalized = (X_test_0 - feat_min) / (feat_max - feat_min)
 X_test_1_normalized = (X_test_1 - feat_min) / (feat_max - feat_min)
-X_test_2_normalized = (X_test_2 - feat_min) / (feat_max - feat_min) # we concatenate to obtain max/min
+X_test_2_normalized = (X_test_2 - feat_min) / (feat_max - feat_min)  # we concatenate to obtain max/min
 X_test_3_normalized = (X_test_3 - feat_min) / (feat_max - feat_min)
 
-X_test_mc_normalized = np.concatenate((X_test_0_normalized, X_test_1_normalized, X_test_2_normalized, X_test_3_normalized), axis=0)
+X_test_mc_normalized = np.concatenate(
+    (X_test_0_normalized, X_test_1_normalized, X_test_2_normalized, X_test_3_normalized), axis=0)
 
-SVM_parameters={
+
+### Define and train a model for each couple of classes
+
+
+SVM_parameters = {
     'C': 1,
     'kernel': 'rbf',
 }
@@ -227,7 +258,9 @@ clf_23.fit(np.concatenate((X_train_2_normalized, X_train_3_normalized), axis=0),
            np.concatenate((y_train_2, y_train_3), axis=0))
 # now we have a tree of model.
 
-#now we predict test on label. They're all binary classifiers. We have 3 prediction and we must extract the most present.
+### Evaluate each classifier
+
+# now we predict test on label. They're all binary classifiers. We have 3 prediction and we must extract the most present.
 y_test_predicted_01 = clf_01.predict(X_test_mc_normalized).reshape(-1, 1)
 y_test_predicted_02 = clf_02.predict(X_test_mc_normalized).reshape(-1, 1)
 y_test_predicted_03 = clf_03.predict(X_test_mc_normalized).reshape(-1, 1)
@@ -237,13 +270,20 @@ y_test_predicted_13 = clf_13.predict(X_test_mc_normalized).reshape(-1, 1)
 
 y_test_predicted_23 = clf_23.predict(X_test_mc_normalized).reshape(-1, 1)
 
-y_test_predicted_mc = np.concatenate((y_test_predicted_01, y_test_predicted_02, y_test_predicted_03, y_test_predicted_12, y_test_predicted_13, y_test_predicted_23 ), axis=1)
+### Majority voting
+
+
+y_test_predicted_mc = np.concatenate((
+                                     y_test_predicted_01, y_test_predicted_02, y_test_predicted_03, y_test_predicted_12,
+                                     y_test_predicted_13, y_test_predicted_23), axis=1)
 y_test_predicted_mc = np.array(y_test_predicted_mc, dtype=np.int)
 
 y_test_predicted_mv = np.zeros((y_test_predicted_mc.shape[0],))
 for i, e in enumerate(y_test_predicted_mc):
     y_test_predicted_mv[i] = np.bincount(e).argmax()
 
+
+# Compute the confusion matrix
 
 # we fill the matrix for each sample
 def compute_cm_multiclass(gt, predicted):
@@ -259,4 +299,3 @@ def compute_cm_multiclass(gt, predicted):
     print(CM)
 
 compute_cm_multiclass(y_test_mc, y_test_predicted_mv)
-
